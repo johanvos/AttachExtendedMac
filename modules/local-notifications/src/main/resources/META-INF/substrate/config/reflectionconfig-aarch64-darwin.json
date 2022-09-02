@@ -1,0 +1,6 @@
+[
+  {
+    "name" : "com.gluonhq.attachextendedmac.lifecycle.impl.DesktopLifecycleService",
+    "methods":[{"name":"<init>","parameterTypes":[] }]
+  }
+]

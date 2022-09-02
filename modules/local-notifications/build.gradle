@@ -1,0 +1,8 @@
+dependencies {
+    implementation "com.gluonhq.attach:util:$libraryVersions.attach"
+    implementation "com.gluonhq.attach:storage:$libraryVersions.attach"
+    implementation project(':runtime-args')
+}
+
+ext.moduleName = 'com.gluonhq.attachextendedmac.localnotifications'
+ext.description = 'Common API to access local notifications features'

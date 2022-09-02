@@ -1,0 +1,4 @@
+.gradle
+.idea
+modules/local-notifications/build
+modules/runtime-args/build

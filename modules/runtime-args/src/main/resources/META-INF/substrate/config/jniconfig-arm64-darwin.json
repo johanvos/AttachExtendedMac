@@ -1,0 +1,6 @@
+[
+  {
+    "name" : "com.gluonhq.attachextendedmac.runtimeargs.impl.IOSRuntimeArgsService",
+    "methods":[{"name":"processRuntimeArgs","parameterTypes":["java.lang.String","java.lang.String"] }]
+  }
+]

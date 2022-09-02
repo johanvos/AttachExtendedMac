@@ -1,0 +1,192 @@
+def dummyFiles   = [ '**/*/impl/Dummy**' ]
+def desktopFiles = [ '**/impl/Desktop**', '**/**darwin.json', '**/**linux.json', '**/**windows.json' ]
+
+def projectClasses          = "$project.buildDir/classes/java/main"
+def projectResources        = "$project.buildDir/resources/main"
+def projectDesktopResources = "$project.projectDir/src/desktop/resources/"
+
+def sdkPath(String platform, String version) {
+    return "/Applications/Xcode.app/Contents/Developer/Platforms/${platform}.platform/Developer/SDKs/${platform}${version}.sdk";
+}
+
+task desktopBuild {
+    enabled = project.name != "util"
+    group = "native"
+    dependsOn build
+    doLast {
+        def serviceName = getServiceName(project.name)
+        nativeBuildLib("$project.buildDir", "$project.projectDir", serviceName,
+                System.getProperty('os.name').toLowerCase().contains("mac") ? 'darwin' : 'desktop',
+                System.getProperty('os.name').toLowerCase().contains("mac") ? "${MACOSX_VERSION}" : '', 'static')
+        nativeBuildLib("$project.buildDir", "$project.projectDir", serviceName,
+                System.getProperty('os.name').toLowerCase().contains("mac") ? 'darwin' : 'desktop',
+                System.getProperty('os.name').toLowerCase().contains("mac") ? "${MACOSX_VERSION}" : '', 'shared')
+    }
+}
+
+task desktopJar (type: Jar, dependsOn: desktopBuild) {
+    enabled = project.name != "util"
+    group = "native"
+
+    from projectClasses, projectResources, projectDesktopResources
+    exclude dummyFiles
+
+    archiveClassifier.set('desktop')
+
+    afterEvaluate {
+        def serviceName = getServiceName(project.name)
+        into("native") {
+            from "$project.buildDir/native/darwin/lib${serviceName}.dylib"
+            from "$project.buildDir/native/darwin/lib${serviceName}.a"
+        }
+    }
+}
+
+task nativeBuild {
+    dependsOn desktopBuild
+    group = "native"
+    description = "Runs native build for desktop"
+}
+
+ext.nativeBuildLib = { buildDir, projectDir, name, os, version, type ->
+
+    println("native build for $name started")
+    File shareDir = file("$projectDir/src/main/native/share")
+    if (!shareDir.exists()) {
+        // TODO
+        //println("No share lib dir found for $name")
+        //return
+    }
+    def sharedSources = shareDir.listFiles()
+
+    def osSources = []
+    File osDir = file("$projectDir/src/main/native/$os")
+    if (osDir.exists()) {
+        osSources = osDir.listFiles()
+    } else {
+        println("No native lib dir found for $name at $osDir")
+        return
+    }
+
+    def JAVAHOME = System.getenv("JAVA_HOME")
+    def includeFlags = [
+            "-I$JAVAHOME/include",
+            "-I$projectDir/../../gradle/include",
+    ]
+    def osIncludeFlags = ""
+
+    if (os == "darwin") {
+        osIncludeFlags = "-I$JAVAHOME/include/darwin"
+        def linkerOutputs = []
+        def extension = type == 'static' ? "a" : "dylib"
+        def lipoOutput = "$buildDir/native/darwin/lib${name}.${extension}"
+        def buildSystems = ["MacOSX+arm64", "MacOSX+x86_64"]
+        buildSystems.each { buildSystem ->
+
+            def (platform, arch) = buildSystem.tokenize("+")
+            def sdkPathDarwin = sdkPath(platform, version)
+            if (!file(sdkPathDarwin).exists()) {
+                println "Skipping native-build on macOS: path for ${platform} and version ${MACOSX_VERSION} doesn't exist"
+                return
+            }
+
+            osSources = "$projectDir/src/main/native/$os/${name}.m"
+
+            def compileOutput = "$buildDir/native/darwin/$arch"
+            new File(compileOutput).mkdirs()
+            def compileOutputs = ["$buildDir/native/darwin/$arch/${name}.o"]
+            def linkerOutput = "$buildDir/native/darwin/$arch/lib${name}.${extension}"
+
+            def clangArgs = [
+                    "-xobjective-c",
+                    "-mmacosx-version-min=11.0",
+                    includeFlags,
+                    osIncludeFlags,
+                    "-c",
+                    "-fPIC",
+                    "-arch", arch,
+                    "-isysroot",
+                    sdkPathDarwin,
+                    type == 'static' ? "-DSTATIC_BUILD" : "",
+                    osSources].flatten()
+
+            exec {
+                executable "clang"
+                args clangArgs
+                workingDir compileOutput
+            }
+
+            def commonLinkerArgs = [
+                    "-framework", "Foundation",
+                    "-framework", "CoreGraphics",
+                    "-framework", "CoreBluetooth",
+                    "-framework", "CoreLocation",
+                    "-framework", "CoreMotion",
+                    "-framework", "CoreText",
+                    "-framework", "QuartzCore",
+                    "-framework", "StoreKit",
+                    "-framework", "UserNotifications",
+                    "-L${sdkPathDarwin}/usr/lib",
+                    "-o", linkerOutput,
+                    compileOutputs
+            ].flatten()
+
+            def dynamicLinkFlags = ["-dynamiclib", "-arch", arch, commonLinkerArgs].flatten()
+
+            def staticLinkFlags  = ["-static", "-syslibroot", sdkPathDarwin, "-arch_only", arch, commonLinkerArgs].flatten();
+
+            def linkerArgs = type == 'static' ? staticLinkFlags : dynamicLinkFlags
+            def executableArg = type == 'static' ? "libtool" : "clang++"
+
+            exec {
+                executable executableArg
+                args linkerArgs
+                workingDir compileOutput
+            }
+            linkerOutputs.add(linkerOutput)
+
+            // execute lipo to combine all linker output in one archive
+            def lipoArgs = ["-create", linkerOutputs, "-o", lipoOutput].flatten()
+            exec {
+                executable "lipo"
+                args lipoArgs
+            }
+
+            println("native build for $name finished")
+            File n = new File(lipoOutput)
+            if (n.exists()) {
+                n
+            }
+        }
+    } else {
+        // TODO
+        def compileOutput = "$buildDir/native/$os"
+        new File(compileOutput).mkdirs()
+
+        def compiler = "gcc"
+
+        def cargs = [
+                "-c", includeFlags, osIncludeFlags, sharedSources, osSources
+        ].flatten()
+
+        exec {
+            executable "/usr/bin/gcc"
+            args cargs
+            workingDir compileOutput
+        }
+        // TODO
+        File n = new File("$buildDir/native/${os}")
+        if (n.exists()) {
+            fileTree("$buildDir/native/${os}").filter { it.isFile() }.files
+                    .first()
+        }
+    }
+}
+
+private String getServiceName(projectName) {
+    if (projectName.contains("-")) { // in-app-billing -> InAppBilling
+        def values = projectName.tokenize("-")
+        return values.inject("") { name, pn -> name + pn.capitalize()  }
+    }
+    return projectName.capitalize()
+}
