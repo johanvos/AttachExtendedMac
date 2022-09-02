@@ -1,4 +1,4 @@
-# Attach Extended Mac#
+# Attach Extended Mac #
 
 Gluon [Attach](http://gluonhq.com/products/mobile/attach/) is the component that addresses the integration with low-level platform APIs in an end-to-end Java Mobile solution.
 
@@ -19,7 +19,7 @@ As a custom service, it can't use the `com.gluonhq.attach` package name. This av
 
 Once the service has been tested in all possible platforms, it could be contributed to Attach via [Pull Request](https://github.com/gluonhq/attach/pulls).
 
-## Building Attach Extended ##
+## Building Attach Extended for Mac ##
 
 ### Requisites ###
 
@@ -29,14 +29,8 @@ These are the requisites:
 * Gradle 6.0 or superior. 
 * Attach Util 4.0.12 or superior
 
-To build the iOS Services:
- 
 * A Mac with with MacOS X 10.14.4 or superior
 * XCode 11.x or superior
-
-To build the Android services:
-
-* Android SDK and Android NDK (The GluonFX plugin installs both when building for Android)
 
 ### Attach Documentation ###
 
