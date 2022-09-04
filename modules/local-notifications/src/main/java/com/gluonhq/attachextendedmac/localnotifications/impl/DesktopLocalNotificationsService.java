@@ -36,6 +36,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Locale;
 import java.util.logging.Level;
 
 /**
@@ -45,9 +46,13 @@ public class DesktopLocalNotificationsService extends LocalNotificationsServiceB
 
     private static final String NOTIFICATION_IMAGE = "notificationImage.png";
 
+    private static final String OS_NAME  = System.getProperty("os.name").toLowerCase(Locale.ROOT);
+
     static {
-        System.loadLibrary("LocalNotifications");
-        initLocalNotification();
+        if (OS_NAME.contains("mac")) {
+            System.loadLibrary("LocalNotifications");
+            initLocalNotification();
+        }
     }
 
     private final File assetsFolder;

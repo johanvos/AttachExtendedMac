@@ -29,6 +29,7 @@ package com.gluonhq.attachextendedmac.runtimeargs.impl;
 
 import com.gluonhq.attachextendedmac.runtimeargs.RuntimeArgsService;
 
+import java.util.Locale;
 import java.util.logging.Level;
 
 /**
@@ -38,9 +39,13 @@ import java.util.logging.Level;
  */
 public class DesktopRuntimeArgsService extends DefaultRuntimeArgsService {
 
+    private static final String OS_NAME  = System.getProperty("os.name").toLowerCase(Locale.ROOT);
+
     static {
-        System.loadLibrary("RuntimeArgs");
-        initRuntimeArgs();
+        if (OS_NAME.contains("mac")) {
+            System.loadLibrary("RuntimeArgs");
+            initRuntimeArgs();
+        }
     }
 
     private static DesktopRuntimeArgsService instance;
