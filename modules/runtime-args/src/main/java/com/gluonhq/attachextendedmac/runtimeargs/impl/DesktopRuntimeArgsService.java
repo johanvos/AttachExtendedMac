@@ -29,8 +29,11 @@ package com.gluonhq.attachextendedmac.runtimeargs.impl;
 
 import com.gluonhq.attachextendedmac.runtimeargs.RuntimeArgsService;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Locale;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * An implementation of the
@@ -40,11 +43,17 @@ import java.util.logging.Level;
 public class DesktopRuntimeArgsService extends DefaultRuntimeArgsService {
 
     private static final String OS_NAME  = System.getProperty("os.name").toLowerCase(Locale.ROOT);
+    private static final Logger LOG = Logger.getLogger(DesktopRuntimeArgsService.class.getName());
 
     static {
         if (OS_NAME.contains("mac")) {
-            System.loadLibrary("RuntimeArgs");
-            initRuntimeArgs();
+            Path path = Path.of(System.getProperty("user.home"), ".gluon", "libs", "libRuntimeArgs.dylib");
+            if (Files.exists(path)) {
+                System.load(path.toString());
+                initRuntimeArgs();
+            } else {
+                LOG.log(Level.SEVERE, "Library not found at " + path);
+            }
         }
     }
 

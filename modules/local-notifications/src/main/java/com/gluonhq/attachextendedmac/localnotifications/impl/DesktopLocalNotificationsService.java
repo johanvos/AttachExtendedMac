@@ -36,8 +36,11 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Locale;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *  Desktop implementation of LocalNotificationsService.
@@ -45,13 +48,18 @@ import java.util.logging.Level;
 public class DesktopLocalNotificationsService extends LocalNotificationsServiceBase {
 
     private static final String NOTIFICATION_IMAGE = "notificationImage.png";
+    private static final Logger LOG = Logger.getLogger(LocalNotificationsServiceBase.class.getName());
 
     private static final String OS_NAME  = System.getProperty("os.name").toLowerCase(Locale.ROOT);
 
     static {
         if (OS_NAME.contains("mac")) {
-            System.loadLibrary("LocalNotifications");
-            initLocalNotification();
+            Path path = Path.of(System.getProperty("user.home"), ".gluon", "libs", "libLocalNotifications.dylib");
+            if (Files.exists(path)) {
+                System.load(path.toString());
+            } else {
+                LOG.log(Level.SEVERE, "Library not found at " + path);
+            }
         }
     }
 
