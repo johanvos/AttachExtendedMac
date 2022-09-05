@@ -57,6 +57,7 @@ public class DesktopLocalNotificationsService extends LocalNotificationsServiceB
             Path path = Path.of(System.getProperty("user.home"), ".gluon", "libs", "libLocalNotifications.dylib");
             if (Files.exists(path)) {
                 System.load(path.toString());
+                initLocalNotification();
             } else {
                 LOG.log(Level.SEVERE, "Library not found at " + path);
             }
