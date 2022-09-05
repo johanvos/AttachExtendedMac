@@ -15,9 +15,10 @@ task desktopBuild {
     dependsOn build
     doLast {
         def serviceName = getServiceName(project.name)
-        nativeBuildLib("$project.buildDir", "$project.projectDir", serviceName,
-                System.getProperty('os.name').toLowerCase().contains("mac") ? 'darwin' : 'desktop',
-                System.getProperty('os.name').toLowerCase().contains("mac") ? "${MACOSX_VERSION}" : '', 'static')
+        // TODO: Include once static lib can be notarized
+//        nativeBuildLib("$project.buildDir", "$project.projectDir", serviceName,
+//                System.getProperty('os.name').toLowerCase().contains("mac") ? 'darwin' : 'desktop',
+//                System.getProperty('os.name').toLowerCase().contains("mac") ? "${MACOSX_VERSION}" : '', 'static')
         nativeBuildLib("$project.buildDir", "$project.projectDir", serviceName,
                 System.getProperty('os.name').toLowerCase().contains("mac") ? 'darwin' : 'desktop',
                 System.getProperty('os.name').toLowerCase().contains("mac") ? "${MACOSX_VERSION}" : '', 'shared')
@@ -37,7 +38,8 @@ task desktopJar (type: Jar, dependsOn: desktopBuild) {
         def serviceName = getServiceName(project.name)
         into("native") {
             from "$project.buildDir/native/darwin/lib${serviceName}.dylib"
-            from "$project.buildDir/native/darwin/lib${serviceName}.a"
+            // TODO: include static version once it can be notarized
+//            from "$project.buildDir/native/darwin/lib${serviceName}.a"
         }
     }
 }
