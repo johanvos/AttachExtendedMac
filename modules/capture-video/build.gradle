@@ -1,0 +1,6 @@
+dependencies {
+    implementation "com.gluonhq.attach:util:$libraryVersions.attach"
+}
+
+ext.moduleName = 'com.gluonhq.attachextendedmac.capturevideo'
+ext.description = 'Common API to access video capture features'

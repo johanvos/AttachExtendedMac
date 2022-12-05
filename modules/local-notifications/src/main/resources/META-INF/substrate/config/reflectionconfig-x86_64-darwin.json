@@ -1,6 +1,6 @@
 [
   {
-    "name" : "com.gluonhq.attachextendedmac.lifecycle.impl.DesktopLifecycleService",
+    "name" : "com.gluonhq.attachextendedmac.localnotifications.impl.DesktopLocalNotificationsService",
     "methods":[{"name":"<init>","parameterTypes":[] }]
   }
 ]

@@ -9,8 +9,10 @@ pluginManagement {
 
 rootProject.name = 'attach-extended-mac'
 
+include 'capture-video'
 include 'local-notifications'
 include 'runtime-args'
 
+project(':capture-video').projectDir                    = file('modules/capture-video')
 project(':local-notifications').projectDir              = file('modules/local-notifications')
 project(':runtime-args').projectDir                     = file('modules/runtime-args')

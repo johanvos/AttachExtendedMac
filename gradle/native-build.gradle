@@ -52,7 +52,7 @@ task nativeBuild {
 
 ext.nativeBuildLib = { buildDir, projectDir, name, os, version, type ->
 
-    println("native build for $name started")
+    println("native build for $name and type $type started")
     File shareDir = file("$projectDir/src/main/native/share")
     if (!shareDir.exists()) {
         // TODO
@@ -120,11 +120,14 @@ ext.nativeBuildLib = { buildDir, projectDir, name, os, version, type ->
 
             def commonLinkerArgs = [
                     "-framework", "Foundation",
+                    "-framework", "AVFoundation",
                     "-framework", "CoreGraphics",
                     "-framework", "CoreBluetooth",
                     "-framework", "CoreLocation",
+                    "-framework", "CoreMedia",
                     "-framework", "CoreMotion",
                     "-framework", "CoreText",
+                    "-framework", "AppKit",
                     "-framework", "QuartzCore",
                     "-framework", "StoreKit",
                     "-framework", "UserNotifications",

@@ -1,0 +1,6 @@
+[
+  {
+    "name" : "com.gluonhq.attachextendedmac.capturevideo.impl.DesktopCaptureVideoService",
+    "methods":[{"name":"<init>","parameterTypes":[] }]
+  }
+]
