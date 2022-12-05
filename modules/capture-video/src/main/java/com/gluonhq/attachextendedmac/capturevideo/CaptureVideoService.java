@@ -29,7 +29,6 @@ package com.gluonhq.attachextendedmac.capturevideo;
 
 import com.gluonhq.attach.util.Services;
 import javafx.beans.property.ReadOnlyObjectProperty;
-import javafx.scene.image.Image;
 
 import java.util.Optional;
 
@@ -47,5 +46,6 @@ public interface CaptureVideoService {
 
     void stop();
 
-    ReadOnlyObjectProperty<Image> imageProperty();
+    ReadOnlyObjectProperty<Frame> frameProperty();
+
 }

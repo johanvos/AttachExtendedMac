@@ -169,8 +169,8 @@ AVCaptureVideoDataOutput *_output;
  - (void) startSession
  {
      _session = [[AVCaptureSession alloc] init];
-     _session.sessionPreset = AVCaptureSessionPresetMedium;
-//      _session.sessionPreset = AVCaptureSessionPreset320x240;
+//      _session.sessionPreset = AVCaptureSessionPresetMedium;
+     _session.sessionPreset = AVCaptureSessionPreset320x240;
      _device = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
      NSError *error = nil;
 

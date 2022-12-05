@@ -28,12 +28,11 @@
 package com.gluonhq.attachextendedmac.capturevideo.impl;
 
 import com.gluonhq.attachextendedmac.capturevideo.CaptureVideoService;
+import com.gluonhq.attachextendedmac.capturevideo.Frame;
 import javafx.application.Platform;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
-import javafx.scene.image.Image;
 
-import java.io.ByteArrayInputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Base64;
@@ -59,23 +58,23 @@ public class DesktopCaptureVideoService implements CaptureVideoService {
         }
     }
 
-    private static final ReadOnlyObjectWrapper<Image> imageProperty = new ReadOnlyObjectWrapper<>();
+    private static final ReadOnlyObjectWrapper<Frame> frameProperty = new ReadOnlyObjectWrapper<>();
 
     @Override
     public void start() {
-        imageProperty.setValue(null);
+        frameProperty.setValue(null);
         nativeStart();
     }
 
     @Override
     public void stop() {
         nativeStop();
-        imageProperty.setValue(null);
+        frameProperty.setValue(null);
     }
 
     @Override
-    public ReadOnlyObjectProperty<Image> imageProperty() {
-        return imageProperty.getReadOnlyProperty();
+    public ReadOnlyObjectProperty<Frame> frameProperty() {
+        return frameProperty.getReadOnlyProperty();
     }
 
     private static native void initCaptureVideo();
@@ -87,10 +86,8 @@ public class DesktopCaptureVideoService implements CaptureVideoService {
         if (v != null && !v.isEmpty()) {
             try {
                 byte[] imageBytes = Base64.getDecoder().decode(v.replaceAll("\\s+", "").getBytes());
-                Image image = new Image(new ByteArrayInputStream(imageBytes));
-                if (image.getException() == null) {
-                    Platform.runLater(() -> imageProperty.setValue(image));
-                }
+                // for now: AVCaptureSessionPreset320x240
+                Platform.runLater(() -> frameProperty.setValue(new Frame(320, 240, imageBytes)));
             } catch (Exception ex) {
                 System.err.println("Error setResult: " + ex);
             }
