@@ -37,4 +37,4 @@
     - (void) stopSession;
 @end
 
-void sendPicturesResult(NSString *picResult);
+void sendPicturesResult(int width, int height, uint8_t* data, size_t len);

@@ -67,7 +67,7 @@ JNIEXPORT void JNICALL Java_com_gluonhq_attachextendedmac_capturevideo_impl_Desk
     captureInited = 1;
 
     mat_jCaptureVideoServiceClass = (*env)->NewGlobalRef(env, (*env)->FindClass(env, "com/gluonhq/attachextendedmac/capturevideo/impl/DesktopCaptureVideoService"));
-    mat_jCaptureVideoService_setResult = (*env)->GetStaticMethodID(env, mat_jCaptureVideoServiceClass, "setResult", "(Ljava/lang/String;)V");
+    mat_jCaptureVideoService_setResult = (*env)->GetStaticMethodID(env, mat_jCaptureVideoServiceClass, "setResult", "(II[B)V");
 }
 
 JNIEXPORT void JNICALL Java_com_gluonhq_attachextendedmac_capturevideo_impl_DesktopCaptureVideoService_nativeStart
@@ -96,70 +96,18 @@ JNIEXPORT void JNICALL Java_com_gluonhq_attachextendedmac_capturevideo_impl_Desk
     }
 }
 
-void sendPicturesResult(NSString *picResult) {
+void sendPicturesResult(int width, int height, uint8_t* data, size_t len) {
     JNIEnv *env = jEnv;
-    if (picResult)
-    {
-        const char *picChars = [picResult UTF8String];
-        jstring jpic = (*env)->NewStringUTF(env, picChars);
-        (*env)->CallStaticVoidMethod(env, mat_jCaptureVideoServiceClass, mat_jCaptureVideoService_setResult, jpic);
-        (*env)->DeleteLocalRef(env, jpic);
-//         AttachLog(@"Finished sending picture");
-    } else
-    {
-        (*env)->CallStaticVoidMethod(env, mat_jCaptureVideoServiceClass, mat_jCaptureVideoService_setResult, NULL);
-    }
+    jbyteArray picByteArray = (*env)->NewByteArray(env, len);
+    (*env)->SetByteArrayRegion(env, picByteArray, 0, len, (const jbyte*)(data));
+    (*env)->CallStaticVoidMethod(env, mat_jCaptureVideoServiceClass, mat_jCaptureVideoService_setResult, width, height, picByteArray);
 }
-
-@interface NSImage (data)
-- (NSData *)toNSData;
-@end
-
-@implementation NSImage (data)
-
-- (NSData *)toNSData
-{
-    NSBitmapImageRep *bmprep = [self bitmapImageRepresentation];
-    return [bmprep representationUsingType:NSBitmapImageFileTypePNG properties:@{NSImageCompressionFactor: @(0.0)}];
-}
-
-- (NSBitmapImageRep *)bitmapImageRepresentation {
-    int width = [self size].width;
-    int height = [self size].height;
-
-    if(width < 1 || height < 1)
-        return nil;
-
-    NSBitmapImageRep *rep = [[NSBitmapImageRep alloc]
-                             initWithBitmapDataPlanes: NULL
-                             pixelsWide: width
-                             pixelsHigh: height
-                             bitsPerSample: 8
-                             samplesPerPixel: 4
-                             hasAlpha: YES
-                             isPlanar: NO
-                             colorSpaceName: NSDeviceRGBColorSpace
-                             bytesPerRow: width * 4
-                             bitsPerPixel: 32];
-
-    NSGraphicsContext *ctx = [NSGraphicsContext graphicsContextWithBitmapImageRep: rep];
-    [NSGraphicsContext saveGraphicsState];
-    [NSGraphicsContext setCurrentContext: ctx];
-    [self drawAtPoint: NSZeroPoint fromRect: NSZeroRect operation: NSCompositingOperationCopy fraction: 1.0];
-    [ctx flushGraphics];
-    [NSGraphicsContext restoreGraphicsState];
-
-    return rep;
-}
-
-@end
 
 @implementation CaptureVideo
 
 - (void) loadView {
     // prevents runtime error: "could not load the nibName:"
 }
-
 
 AVCaptureSession *_session;
 AVCaptureDevice *_device;
@@ -169,7 +117,6 @@ AVCaptureVideoDataOutput *_output;
  - (void) startSession
  {
      _session = [[AVCaptureSession alloc] init];
-//      _session.sessionPreset = AVCaptureSessionPresetMedium;
      _session.sessionPreset = AVCaptureSessionPreset320x240;
      _device = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
      NSError *error = nil;
@@ -215,38 +162,22 @@ AVCaptureVideoDataOutput *_output;
 {
     NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     {
-//        NSLog(@"Handle frame %@", sampleBuffer);
-       NSImage *image = [self screenshotOfVideoStream:sampleBuffer];
-       NSData *imageData = [image toNSData];
-       NSString *base64StringOfImage = [imageData base64EncodedStringWithOptions:NSDataBase64Encoding64CharacterLineLength];
-       dispatch_async(dispatch_get_main_queue(), ^{
-            sendPicturesResult(base64StringOfImage);
-       });
+        CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
+        if (imageBuffer != NULL) {
+            CVPixelBufferLockBaseAddress(imageBuffer, 0);
+            uint8_t* data = CVPixelBufferGetBaseAddress(imageBuffer);
+            size_t width = CVPixelBufferGetWidth(imageBuffer);
+            size_t height = CVPixelBufferGetHeight(imageBuffer);
+            size_t length = CVPixelBufferGetDataSize(imageBuffer);
+            size_t bytesPerRow = CVPixelBufferGetBytesPerRow(imageBuffer);
+            size_t pixelFormat = CVPixelBufferGetPixelFormatType(imageBuffer); // kCVPixelFormatType_422YpCbCr8
+            dispatch_async(dispatch_get_main_queue(), ^{
+                sendPicturesResult(width, height, data, length);
+            });
+       }
     }
     [pool drain];
     pool=nil;
-}
-
-- (NSImage *)screenshotOfVideoStream:(CMSampleBufferRef)samImageBuff
-{
-    NSImage *image;
-    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-    {
-        CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(samImageBuff);
-        CIImage *ciImage = [CIImage imageWithCVPixelBuffer:imageBuffer];
-        CIContext *temporaryContext = [CIContext contextWithOptions:nil];
-        CGImageRef videoImage = [temporaryContext
-                         createCGImage:ciImage
-                         fromRect:CGRectMake(0, 0,
-                         CVPixelBufferGetWidth(imageBuffer),
-                         CVPixelBufferGetHeight(imageBuffer))];
-
-        image = [[NSImage alloc] initWithCGImage:videoImage size:NSMakeSize(CVPixelBufferGetWidth(imageBuffer), CVPixelBufferGetHeight(imageBuffer))];
-        CGImageRelease(videoImage);
-    }
-    [pool drain];
-    pool=nil;
-    return image;
 }
 
 - (void) logMessage:(NSString *)format, ...;
@@ -260,3 +191,4 @@ AVCaptureVideoDataOutput *_output;
 //     }
 }
 @end 
+

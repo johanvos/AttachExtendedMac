@@ -35,7 +35,6 @@ import javafx.beans.property.ReadOnlyObjectWrapper;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Base64;
 import java.util.Locale;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -82,15 +81,10 @@ public class DesktopCaptureVideoService implements CaptureVideoService {
     private static native void nativeStop();
 
     // callback
-    public static void setResult(String v) {
-        if (v != null && !v.isEmpty()) {
-            try {
-                byte[] imageBytes = Base64.getDecoder().decode(v.replaceAll("\\s+", "").getBytes());
-                // for now: AVCaptureSessionPreset320x240
-                Platform.runLater(() -> frameProperty.setValue(new Frame(320, 240, imageBytes)));
-            } catch (Exception ex) {
-                System.err.println("Error setResult: " + ex);
-            }
+    public static void setResult(int width, int height, byte[] data) {
+        if (data != null) {
+            Frame f = new Frame(width, height, data);
+            Platform.runLater(() -> frameProperty.setValue(f));
         }
     }
 }
