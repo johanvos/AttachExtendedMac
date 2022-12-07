@@ -99,8 +99,14 @@ JNIEXPORT void JNICALL Java_com_gluonhq_attachextendedmac_capturevideo_impl_Desk
 void sendPicturesResult(int width, int height, uint8_t* data, size_t len) {
     JNIEnv *env = jEnv;
     jbyteArray picByteArray = (*env)->NewByteArray(env, len);
-    (*env)->SetByteArrayRegion(env, picByteArray, 0, len, (const jbyte*)(data));
+    (*env)->SetByteArrayRegion(env, picByteArray, 0, len, data);
+    if ((*env)->ExceptionCheck(env)) {
+        (*env)->ExceptionDescribe(env);
+        (*env)->ExceptionClear(env);
+        return;
+    }
     (*env)->CallStaticVoidMethod(env, mat_jCaptureVideoServiceClass, mat_jCaptureVideoService_setResult, width, height, picByteArray);
+    (*env)->DeleteLocalRef(env, picByteArray);
 }
 
 @implementation CaptureVideo
@@ -131,6 +137,11 @@ AVCaptureVideoDataOutput *_output;
 
      _output = [[AVCaptureVideoDataOutput alloc] init];
      if (_output) {
+        NSString* key = (NSString*)kCVPixelBufferPixelFormatTypeKey;
+        NSNumber* val = [NSNumber numberWithUnsignedInt:kCVPixelFormatType_32BGRA];
+        // NSNumber* val = [NSNumber numberWithUnsignedInt:kCVPixelFormatType_420YpCbCr8BiPlanarFullRange];
+        NSDictionary* videoSettings = [NSDictionary dictionaryWithObject:val forKey:key];
+        _output.videoSettings = videoSettings;
         _output.alwaysDiscardsLateVideoFrames = true;
         dispatch_queue_t queue = dispatch_queue_create("myQueue", NULL);
         [_output setSampleBufferDelegate:self queue:queue];
@@ -169,10 +180,14 @@ AVCaptureVideoDataOutput *_output;
             size_t width = CVPixelBufferGetWidth(imageBuffer);
             size_t height = CVPixelBufferGetHeight(imageBuffer);
             size_t length = CVPixelBufferGetDataSize(imageBuffer);
+            uint8_t* rdata = malloc(length);
+            memcpy(rdata, data, length);
             size_t bytesPerRow = CVPixelBufferGetBytesPerRow(imageBuffer);
             size_t pixelFormat = CVPixelBufferGetPixelFormatType(imageBuffer); // kCVPixelFormatType_422YpCbCr8
+            CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
             dispatch_async(dispatch_get_main_queue(), ^{
-                sendPicturesResult(width, height, data, length);
+                sendPicturesResult(width, height, rdata, length);
+                free(rdata);
             });
        }
     }
