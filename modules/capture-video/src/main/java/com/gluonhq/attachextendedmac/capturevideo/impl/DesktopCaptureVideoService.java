@@ -67,7 +67,18 @@ System.err.println("LOAD " + path);
     @Override
     public void start() {
         frameProperty.setValue(null);
-        nativeStart();
+        Thread t = new Thread() {
+            @Override public void run() {
+                try {
+                    LOG.info("Pass control to native start camera");
+                    nativeStart();
+                    LOG.info("Returned control from native start camera");
+                } catch (Throwable t) {
+                    t.printStackTrace();
+                }
+            }
+        };
+        t.start();
     }
 
     @Override
@@ -87,6 +98,8 @@ System.err.println("LOAD " + path);
 
     // callback
     public static void setResult(int width, int height, byte[] data) {
+LOG.info("Got result");
+LOG.info("Got result with w = " + width+ " and h = " + height);
         if (data != null) {
             Frame f = new Frame(width, height, data);
             Platform.runLater(() -> frameProperty.setValue(f));

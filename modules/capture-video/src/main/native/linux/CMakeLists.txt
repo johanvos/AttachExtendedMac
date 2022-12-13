@@ -7,4 +7,4 @@ include_directories(/opt/java/include/linux)
 add_library(CaptureVideo SHARED
     ../src/capture.c
 )
-target_link_libraries(CaptureVideo udev)
+target_link_libraries(CaptureVideo v4l2 udev)

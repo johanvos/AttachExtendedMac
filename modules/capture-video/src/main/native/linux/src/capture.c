@@ -1,160 +1,208 @@
-#include <fcntl.h>
-#include <libudev.h>
+// INSPIRED BY: 
+/* V4L2 video picture grabber
+   Copyright (C) 2009 Mauro Carvalho Chehab <mchehab@infradead.org>
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   Modified by Derek Molloy (www.derekmolloy.ie)
+   Modified to change resolution details and set paths for the Beaglebone.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <libudev.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <linux/videodev2.h>
+#include <libv4l2.h>
 #include <unistd.h>
 
 #include "jni.h"
 
-#define UDEV_SUBSYSTEM "video4linux"
-
-    u_int8_t* buffer; 
-
-int initialize () {
-    struct udev* udev;
-    struct udev_enumerate* enumerate;
-    struct udev_list_entry* udev_devices, *dev_list_entry;
-    udev = udev_new();
-    enumerate = udev_enumerate_new(udev);
-    udev_enumerate_add_match_subsystem(enumerate, UDEV_SUBSYSTEM);
-    udev_enumerate_scan_devices(enumerate);
-    udev_devices = udev_enumerate_get_list_entry(enumerate);
-    fprintf(stderr, "Got some devices: %p\n", udev_devices);
-int fd = -1;
-    udev_list_entry_foreach(dev_list_entry, udev_devices) {
-        const char * path = udev_list_entry_get_name(dev_list_entry);
-        fprintf(stderr, "Got a device: %s\n", path);
-        struct udev_device * dev = udev_device_new_from_syspath(udev, path);
-        const char * node = udev_device_get_devnode(dev);
-        int v4l2_fd = open(node, O_RDONLY);
-        fprintf(stderr, "Got a node with fd = %d: %s\n", v4l2_fd, path);
-        if (v4l2_fd < 0) {
-            fprintf(stderr, "ERROR1\n");
-        }
-        struct v4l2_capability vcap;
-        if (ioctl(v4l2_fd, VIDIOC_QUERYCAP, &vcap) == -1) {
-            fprintf(stderr, "ERROR2\n");
-        }
-        if (!(vcap.capabilities & V4L2_CAP_VIDEO_CAPTURE)) {
-            fprintf(stderr, "ERROR3\n");
-        }
-if (fd == -1) fd = v4l2_fd;
-        const char * name = (const char *) vcap.card;
-        fprintf(stderr, "Name = %s\n", name);
-        struct v4l2_format format = {0};
-        struct v4l2_fmtdesc fmt = { 0 };
-        struct v4l2_frmsizeenum frameSize = { 0 };
-
-        fmt.index = 0;
-        fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-        while (ioctl(v4l2_fd, VIDIOC_ENUM_FMT, &fmt) >= 0) {
-            fprintf(stderr, "Pixelformat = %d\n", fmt.pixelformat);
-            fmt.index++;
-        }
-
-    }
-    return fd;
-}
-
-int set_format(int fd) {
-    struct v4l2_format format = {0};
-    format.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    format.fmt.pix.width = 320;
-    format.fmt.pix.height = 240;
-    format.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
-    format.fmt.pix.field = V4L2_FIELD_NONE;
-    int res = ioctl(fd, VIDIOC_S_FMT, &format);
-    if(res == -1) {
-        perror("Could not set format");
-        exit(1);
-    }
-    return res;
-}
-
-int request_buffer(int fd, int count) {
-    struct v4l2_requestbuffers req = {0};
-    req.count = count;
-    req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    req.memory = V4L2_MEMORY_MMAP;
-    if (-1 == ioctl(fd, VIDIOC_REQBUFS, &req))
-    {
-        perror("Requesting Buffer");
-        exit(1);
-    }
-    return 0;
-}
-
-int query_buffer(int fd) {
-    struct v4l2_buffer buf = {0};
-    buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    buf.memory = V4L2_MEMORY_MMAP;
-    buf.index = 0;
-    int res = ioctl(fd, VIDIOC_QUERYBUF, &buf);
-    if(res == -1) {
-        perror("Could not query buffer");
-        return 2;
-    }
-    buffer = (u_int8_t*)mmap (NULL, buf.length, PROT_READ | PROT_WRITE, MAP_SHARED, fd, buf.m.offset);
-    return buf.length;
-}
-
-int start_streaming(int fd) {
-    unsigned int type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    if(ioctl(fd, VIDIOC_STREAMON, &type) == -1){
-        perror("VIDIOC_STREAMON");
-        exit(1);
-    }
-}
-
-int queue_buffer(int fd) {
-    fprintf(stderr, "queue buffer for %d\n", fd);
-    struct v4l2_buffer bufd = {0};
-    bufd.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    bufd.memory = V4L2_MEMORY_MMAP;
-    bufd.index = 0;
-    if(-1 == ioctl(fd, VIDIOC_QBUF, &bufd))
-    {
-    fprintf(stderr, "bummer.\n");
-        perror("Queue Buffer");
-        return 1;
-    }
-    return bufd.bytesused;
-}
-
-void grab_frame(int camera, int size) {
-    queue_buffer(camera);
-    //Wait for io operation
-    fd_set fds;
-    FD_ZERO(&fds);
-    FD_SET(camera, &fds);
-    struct timeval tv = {0};
-    tv.tv_sec = 2; //set timeout to 2 second
-    int r = select(camera+1, &fds, NULL, NULL, &tv);
-    if(-1 == r){
-        perror("Waiting for Frame");
-        exit(1);
-    }
-    int file = open("output.yuy", O_WRONLY);
-    write(file, buffer, size); //size is obtained from the query_buffer function
-    // dequeue_buffer(camera);
-}
-
-void capture() {
-     int fd = initialize();
-// int fd = open("/dev/video0", O_RDWR);
-set_format(fd);
-request_buffer(fd, 10);
-int size = query_buffer(fd);
-start_streaming(fd);
-queue_buffer(fd);
-grab_frame(fd, size);
-}
-
+JNIEnv *jEnv = NULL;
 jclass jCaptureVideoServiceClass;
 jmethodID jCaptureVideoService_setResult = 0;
+
+
+int active = 0;
+
+#define CLEAR(x) memset(&(x), 0, sizeof(x))
+
+struct buffer {
+        void   *start;
+        size_t length;
+};
+
+static void xioctl(int fh, int request, void *arg) {
+        int r;
+        do {
+                r = v4l2_ioctl(fh, request, arg);
+        } while (r == -1 && ((errno == EINTR) || (errno == EAGAIN)));
+        if (r == -1) {
+                fprintf(stderr, "error %d, %s\n", errno, strerror(errno));
+                exit(EXIT_FAILURE);
+        }
+}
+
+int initializeGrabber() {
+}
+
+void sendPicturesResult(int width, int height, uint8_t* data, size_t len) {
+    JNIEnv *env = jEnv;
+    jbyteArray picByteArray = (*env)->NewByteArray(env, len);
+    (*env)->SetByteArrayRegion(env, picByteArray, 0, len, data);
+    if ((*env)->ExceptionCheck(env)) {
+        (*env)->ExceptionDescribe(env);
+        (*env)->ExceptionClear(env);
+        return;
+    }
+    (*env)->CallStaticVoidMethod(env, jCaptureVideoServiceClass, jCaptureVideoService_setResult, width, height, picByteArray);
+    (*env)->DeleteLocalRef(env, picByteArray);
+}
+
+void rgbToRgba(char* rgba, const char* rgb, const int count) {
+    if(count==0) return;
+    for(int i=count; --i; rgba+=4, rgb+=3) {
+        *(uint32_t*)(void*)rgba = *(const uint32_t*)(const void*)rgb;
+    }
+    for(int j=0; j<3; ++j) {
+        rgba[j] = rgb[j];
+    }
+}
+
+int startGrabbing() {
+        struct v4l2_format              fmt;
+        struct v4l2_buffer              buf;
+        struct v4l2_requestbuffers      req;
+        enum v4l2_buf_type              type;
+        fd_set                          fds;
+        struct timeval                  tv;
+        int                             r, fd = -1;
+        unsigned int                    i, n_buffers;
+        char                            *dev_name = "/dev/video0";
+        char                            out_name[256];
+        FILE                            *fout;
+        struct buffer                   *buffers;
+
+        fd = v4l2_open(dev_name, O_RDWR | O_NONBLOCK, 0);
+        if (fd < 0) {
+                perror("Cannot open device");
+                exit(EXIT_FAILURE);
+        }
+        CLEAR(fmt);
+        fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+        fmt.fmt.pix.width       = 1920;
+        fmt.fmt.pix.height      = 1080;
+        fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_RGB24;
+        fmt.fmt.pix.field       = V4L2_FIELD_INTERLACED;
+        xioctl(fd, VIDIOC_S_FMT, &fmt);
+        if (fmt.fmt.pix.pixelformat != V4L2_PIX_FMT_RGB24) {
+                printf("Libv4l didn't accept RGB24 format. Can't proceed.\n");
+                exit(EXIT_FAILURE);
+        }
+        if ((fmt.fmt.pix.width != 640) || (fmt.fmt.pix.height != 480))
+                printf("Warning: driver is sending image at %dx%d\n",
+                        fmt.fmt.pix.width, fmt.fmt.pix.height);
+
+        CLEAR(req);
+        req.count = 2;
+        req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+        req.memory = V4L2_MEMORY_MMAP;
+        xioctl(fd, VIDIOC_REQBUFS, &req);
+
+        buffers = calloc(req.count, sizeof(*buffers));
+        for (n_buffers = 0; n_buffers < req.count; ++n_buffers) {
+                CLEAR(buf);
+
+                buf.type        = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+                buf.memory      = V4L2_MEMORY_MMAP;
+                buf.index       = n_buffers;
+
+                xioctl(fd, VIDIOC_QUERYBUF, &buf);
+
+                buffers[n_buffers].length = buf.length;
+                buffers[n_buffers].start = v4l2_mmap(NULL, buf.length,
+                              PROT_READ | PROT_WRITE, MAP_SHARED,
+                              fd, buf.m.offset);
+
+                if (MAP_FAILED == buffers[n_buffers].start) {
+                        perror("mmap");
+                        exit(EXIT_FAILURE);
+                }
+        }
+        for (i = 0; i < n_buffers; ++i) {
+                CLEAR(buf);
+                buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+                buf.memory = V4L2_MEMORY_MMAP;
+                buf.index = i;
+                xioctl(fd, VIDIOC_QBUF, &buf);
+        }
+        type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+
+        xioctl(fd, VIDIOC_STREAMON, &type);
+        int cnt;
+        while (active > 0) {
+            cnt++;
+            if (cnt > 19) {cnt = cnt - 20;}
+        // for (i = 0; i < 20; i++) {
+                do {
+                        FD_ZERO(&fds);
+                        FD_SET(fd, &fds);
+
+                        /* Timeout. */
+                        tv.tv_sec = 2;
+                        tv.tv_usec = 0;
+
+                        r = select(fd + 1, &fds, NULL, NULL, &tv);
+                } while ((r == -1 && (errno = EINTR)));
+                if (r == -1) {
+                        perror("select");
+                        return errno;
+                }
+
+                CLEAR(buf);
+                buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+                buf.memory = V4L2_MEMORY_MMAP;
+                xioctl(fd, VIDIOC_DQBUF, &buf);
+
+                sprintf(out_name, "grabber%03d.ppm", i);
+                int width = fmt.fmt.pix.width;
+                int height = fmt.fmt.pix.height;
+                void* rgba = malloc(width*height*4);
+rgbToRgba(rgba, buffers[buf.index].start, width * height);
+// sendPicturesResult(width, height, buffers[buf.index].start, buf.bytesused);
+sendPicturesResult(width, height, rgba, buf.bytesused*4/3);
+                free (rgba);
+                fout = fopen(out_name, "w");
+                if (!fout) {
+                        perror("Cannot open image");
+                        exit(EXIT_FAILURE);
+                }
+                fprintf(fout, "P6\n%d %d 255\n",
+                        fmt.fmt.pix.width, fmt.fmt.pix.height);
+                fwrite(buffers[buf.index].start, buf.bytesused, 1, fout);
+                fclose(fout);
+                xioctl(fd, VIDIOC_QBUF, &buf);
+        }
+
+        type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+        xioctl(fd, VIDIOC_STREAMOFF, &type);
+        for (i = 0; i < n_buffers; ++i)
+                v4l2_munmap(buffers[i].start, buffers[i].length);
+        v4l2_close(fd);
+return 0;
+
+}
 
 int deviceId = -1;
 
@@ -162,17 +210,13 @@ JNIEXPORT void JNICALL Java_com_gluonhq_attachextendedmac_capturevideo_impl_Desk
     fprintf(stderr, "LINUXNATIVEInit\n");
     jCaptureVideoServiceClass = (*env)->NewGlobalRef(env, (*env)->FindClass(env, "com/gluonhq/attachextendedmac/capturevideo/impl/DesktopCaptureVideoService"));
     jCaptureVideoService_setResult = (*env)->GetStaticMethodID(env, jCaptureVideoServiceClass, "setResult", "(II[B)V");
-    deviceId = initialize();
-    set_format(deviceId);
-
+initializeGrabber();
 }
 
 JNIEXPORT void JNICALL Java_com_gluonhq_attachextendedmac_capturevideo_impl_DesktopCaptureVideoService_nativeStart (JNIEnv *env, jclass jClass) {
+jEnv = env;
     fprintf(stderr, "LINUXNATIVESTART\n");
-request_buffer(deviceId, 10);
-int size = query_buffer(deviceId);
-start_streaming(deviceId);
-queue_buffer(deviceId);
-grab_frame(deviceId, size);
+    active =1 ;
+startGrabbing();
 }
 
