@@ -46,15 +46,20 @@ public class DesktopCaptureVideoService implements CaptureVideoService {
     private static final String OS_NAME  = System.getProperty("os.name").toLowerCase(Locale.ROOT);
 
     static {
+System.err.println("CLINIT of capturevideo");
+        Path path = null;
         if (OS_NAME.contains("mac")) {
-            Path path = Path.of(System.getProperty("user.home"), ".gluon", "libs", "libCaptureVideo.dylib");
-            if (Files.exists(path)) {
+            path = Path.of(System.getProperty("user.home"), ".gluon", "libs", "libCaptureVideo.dylib");
+        } else {
+            path = Path.of(System.getProperty("user.home"), ".gluon", "libs", "libCaptureVideo.so");
+        }
+            if ((path != null) && (Files.exists(path))) {
+System.err.println("LOAD " + path);
                 System.load(path.toString());
                 initCaptureVideo();
             } else {
                 LOG.log(Level.SEVERE, "Library not found at " + path);
             }
-        }
     }
 
     private static final ReadOnlyObjectWrapper<Frame> frameProperty = new ReadOnlyObjectWrapper<>();

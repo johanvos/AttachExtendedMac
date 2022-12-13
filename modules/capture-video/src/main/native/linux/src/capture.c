@@ -7,6 +7,7 @@
 #include <linux/videodev2.h>
 #include <unistd.h>
 
+#include "jni.h"
 
 #define UDEV_SUBSYSTEM "video4linux"
 
@@ -150,5 +151,28 @@ int size = query_buffer(fd);
 start_streaming(fd);
 queue_buffer(fd);
 grab_frame(fd, size);
+}
+
+jclass jCaptureVideoServiceClass;
+jmethodID jCaptureVideoService_setResult = 0;
+
+int deviceId = -1;
+
+JNIEXPORT void JNICALL Java_com_gluonhq_attachextendedmac_capturevideo_impl_DesktopCaptureVideoService_initCaptureVideo (JNIEnv *env, jclass jClass) {
+    fprintf(stderr, "LINUXNATIVEInit\n");
+    jCaptureVideoServiceClass = (*env)->NewGlobalRef(env, (*env)->FindClass(env, "com/gluonhq/attachextendedmac/capturevideo/impl/DesktopCaptureVideoService"));
+    jCaptureVideoService_setResult = (*env)->GetStaticMethodID(env, jCaptureVideoServiceClass, "setResult", "(II[B)V");
+    deviceId = initialize();
+    set_format(deviceId);
+
+}
+
+JNIEXPORT void JNICALL Java_com_gluonhq_attachextendedmac_capturevideo_impl_DesktopCaptureVideoService_nativeStart (JNIEnv *env, jclass jClass) {
+    fprintf(stderr, "LINUXNATIVESTART\n");
+request_buffer(deviceId, 10);
+int size = query_buffer(deviceId);
+start_streaming(deviceId);
+queue_buffer(deviceId);
+grab_frame(deviceId, size);
 }
 
