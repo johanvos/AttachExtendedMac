@@ -57,7 +57,8 @@ static void xioctl(int fh, int request, void *arg) {
 int initializeGrabber() {
 }
 
-void sendPicturesResult(int width, int height, uint8_t* data, size_t len) {
+void sendPicturesResult(int width, int height, int format, uint8_t* data, size_t len) {
+    fprintf(stderr, "send pic, format = %d, len = %ld\n", format,len);
     JNIEnv *env = jEnv;
     jbyteArray picByteArray = (*env)->NewByteArray(env, len);
     (*env)->SetByteArrayRegion(env, picByteArray, 0, len, data);
@@ -66,8 +67,11 @@ void sendPicturesResult(int width, int height, uint8_t* data, size_t len) {
         (*env)->ExceptionClear(env);
         return;
     }
-    (*env)->CallStaticVoidMethod(env, jCaptureVideoServiceClass, jCaptureVideoService_setResult, width, height, picByteArray);
+    fprintf(stderr, "send pic2, format = %d\n", format);
+    (*env)->CallStaticVoidMethod(env, jCaptureVideoServiceClass, jCaptureVideoService_setResult, width, height, format, picByteArray);
+    fprintf(stderr, "send pic3, format = %d\n", format);
     (*env)->DeleteLocalRef(env, picByteArray);
+    fprintf(stderr, "send pic4, format = %d\n", format);
 }
 
 void rgbToRgba(char* rgba, const char* rgb, const int count) {
@@ -150,12 +154,8 @@ int startGrabbing() {
         type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
         xioctl(fd, VIDIOC_STREAMON, &type);
-        int cnt;
         while (active > 0) {
-            cnt++;
-            if (cnt > 19) {cnt = cnt - 20;}
-        // for (i = 0; i < 20; i++) {
-                do {
+               do {
                         FD_ZERO(&fds);
                         FD_SET(fd, &fds);
 
@@ -175,23 +175,15 @@ int startGrabbing() {
                 buf.memory = V4L2_MEMORY_MMAP;
                 xioctl(fd, VIDIOC_DQBUF, &buf);
 
-                sprintf(out_name, "grabber%03d.ppm", i);
                 int width = fmt.fmt.pix.width;
                 int height = fmt.fmt.pix.height;
                 void* rgba = malloc(width*height*4);
 rgbToRgba(rgba, buffers[buf.index].start, width * height);
-// sendPicturesResult(width, height, buffers[buf.index].start, buf.bytesused);
-sendPicturesResult(width, height, rgba, buf.bytesused*4/3);
-                free (rgba);
-                fout = fopen(out_name, "w");
-                if (!fout) {
-                        perror("Cannot open image");
-                        exit(EXIT_FAILURE);
-                }
-                fprintf(fout, "P6\n%d %d 255\n",
-                        fmt.fmt.pix.width, fmt.fmt.pix.height);
-                fwrite(buffers[buf.index].start, buf.bytesused, 1, fout);
-                fclose(fout);
+    int len = width * height * 4;
+// rgbToRgba(rgba, buffers[buf.index].start, width * height);
+    // memcpy(snd, buffers[buf.index].start, len);
+sendPicturesResult(width, height, 2, rgba, len);
+free(rgba);
                 xioctl(fd, VIDIOC_QBUF, &buf);
         }
 
@@ -209,7 +201,7 @@ int deviceId = -1;
 JNIEXPORT void JNICALL Java_com_gluonhq_attachextendedmac_capturevideo_impl_DesktopCaptureVideoService_initCaptureVideo (JNIEnv *env, jclass jClass) {
     fprintf(stderr, "LINUXNATIVEInit\n");
     jCaptureVideoServiceClass = (*env)->NewGlobalRef(env, (*env)->FindClass(env, "com/gluonhq/attachextendedmac/capturevideo/impl/DesktopCaptureVideoService"));
-    jCaptureVideoService_setResult = (*env)->GetStaticMethodID(env, jCaptureVideoServiceClass, "setResult", "(II[B)V");
+    jCaptureVideoService_setResult = (*env)->GetStaticMethodID(env, jCaptureVideoServiceClass, "setResult", "(III[B)V");
 initializeGrabber();
 }
 

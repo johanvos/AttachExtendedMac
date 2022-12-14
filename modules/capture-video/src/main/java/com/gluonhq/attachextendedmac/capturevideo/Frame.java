@@ -6,11 +6,13 @@ public class Frame {
 
     private final int width;
     private final int height;
+    private final int pixelFormat;
     private final byte[] bytes;
 
-    public Frame(int width, int height, byte[] bytes) {
+    public Frame(int width, int height, int pixelFormat, byte[] bytes) {
         this.width = width;
         this.height = height;
+        this.pixelFormat = pixelFormat;
         this.bytes = bytes;
     }
 
@@ -20,6 +22,10 @@ public class Frame {
 
     public int getHeight() {
         return height;
+    }
+
+    public int getPixelFormat() {
+        return pixelFormat;
     }
 
     public byte[] getBytes() {

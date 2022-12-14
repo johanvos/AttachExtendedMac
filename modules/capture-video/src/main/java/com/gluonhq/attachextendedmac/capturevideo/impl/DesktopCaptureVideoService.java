@@ -97,11 +97,11 @@ System.err.println("LOAD " + path);
     private static native void nativeStop();
 
     // callback
-    public static void setResult(int width, int height, byte[] data) {
+    public static void setResult(int width, int height, int format, byte[] data) {
 LOG.info("Got result");
 LOG.info("Got result with w = " + width+ " and h = " + height);
         if (data != null) {
-            Frame f = new Frame(width, height, data);
+            Frame f = new Frame(width, height, format, data);
             Platform.runLater(() -> frameProperty.setValue(f));
         }
     }
