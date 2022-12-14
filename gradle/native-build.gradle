@@ -32,12 +32,15 @@ task desktopJar (type: Jar, dependsOn: desktopBuild) {
     from projectClasses, projectResources, projectDesktopResources
     exclude dummyFiles
 
-    archiveClassifier.set('desktop')
+    def classifier = System.getProperty('os.name').toLowerCase().contains("mac") ? 'desktop' : 'linux'
+
+    archiveClassifier.set(classifier)
 
     afterEvaluate {
         def serviceName = getServiceName(project.name)
         into("native") {
             from "$project.buildDir/native/darwin/lib${serviceName}.dylib"
+            from "$project.buildDir/native/linux/lib${serviceName}.so"
             // TODO: include static version once it can be notarized
 //            from "$project.buildDir/native/darwin/lib${serviceName}.a"
         }
