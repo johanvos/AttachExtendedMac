@@ -49,7 +49,7 @@ public class DesktopCaptureVideoService implements CaptureVideoService {
         Path path = null;
         if (OS_NAME.contains("mac")) {
             path = Path.of(System.getProperty("user.home"), ".gluon", "libs", "libCaptureVideo.dylib");
-        } else {
+        } else if (OS_NAME.contains("linux")) {
             path = Path.of(System.getProperty("user.home"), ".gluon", "libs", "libCaptureVideo.so");
         }
         if ((path != null) && (Files.exists(path))) {

@@ -178,7 +178,7 @@ int startGrabbing() {
                 int width = fmt.fmt.pix.width;
                 int height = fmt.fmt.pix.height;
                 void* rgba = malloc(width*height*4);
-rgbToRgba(rgba, buffers[buf.index].start, width * height);
+                rgbToRgba(rgba, buffers[buf.index].start, width * height);
     int len = width * height * 4;
 // rgbToRgba(rgba, buffers[buf.index].start, width * height);
     // memcpy(snd, buffers[buf.index].start, len);
@@ -199,16 +199,20 @@ return 0;
 int deviceId = -1;
 
 JNIEXPORT void JNICALL Java_com_gluonhq_attachextendedmac_capturevideo_impl_DesktopCaptureVideoService_initCaptureVideo (JNIEnv *env, jclass jClass) {
-    fprintf(stderr, "LINUXNATIVEInit\n");
+    fprintf(stderr, "initCaptureVideo\n");
     jCaptureVideoServiceClass = (*env)->NewGlobalRef(env, (*env)->FindClass(env, "com/gluonhq/attachextendedmac/capturevideo/impl/DesktopCaptureVideoService"));
     jCaptureVideoService_setResult = (*env)->GetStaticMethodID(env, jCaptureVideoServiceClass, "setResult", "(III[B)V");
 initializeGrabber();
 }
 
+JNIEXPORT void JNICALL Java_com_gluonhq_attachextendedmac_capturevideo_impl_DesktopCaptureVideoService_nativeStop (JNIEnv *env, jclass jClass) {
+    fprintf(stderr, "LINUXNATIVESTOP\n");
+}
+
 JNIEXPORT void JNICALL Java_com_gluonhq_attachextendedmac_capturevideo_impl_DesktopCaptureVideoService_nativeStart (JNIEnv *env, jclass jClass) {
-jEnv = env;
+    jEnv = env;
     fprintf(stderr, "LINUXNATIVESTART\n");
     active =1 ;
-startGrabbing();
+    startGrabbing();
 }
 
