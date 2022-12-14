@@ -67,7 +67,7 @@ JNIEXPORT void JNICALL Java_com_gluonhq_attachextendedmac_capturevideo_impl_Desk
     captureInited = 1;
 
     mat_jCaptureVideoServiceClass = (*env)->NewGlobalRef(env, (*env)->FindClass(env, "com/gluonhq/attachextendedmac/capturevideo/impl/DesktopCaptureVideoService"));
-    mat_jCaptureVideoService_setResult = (*env)->GetStaticMethodID(env, mat_jCaptureVideoServiceClass, "setResult", "(II[B)V");
+    mat_jCaptureVideoService_setResult = (*env)->GetStaticMethodID(env, mat_jCaptureVideoServiceClass, "setResult", "(III[B)V");
 }
 
 JNIEXPORT void JNICALL Java_com_gluonhq_attachextendedmac_capturevideo_impl_DesktopCaptureVideoService_nativeStart
@@ -105,7 +105,7 @@ void sendPicturesResult(int width, int height, uint8_t* data, size_t len) {
         (*env)->ExceptionClear(env);
         return;
     }
-    (*env)->CallStaticVoidMethod(env, mat_jCaptureVideoServiceClass, mat_jCaptureVideoService_setResult, width, height, picByteArray);
+    (*env)->CallStaticVoidMethod(env, mat_jCaptureVideoServiceClass, mat_jCaptureVideoService_setResult, width, height, 0, picByteArray);
     (*env)->DeleteLocalRef(env, picByteArray);
 }
 

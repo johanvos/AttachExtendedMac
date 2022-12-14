@@ -46,14 +46,22 @@ public class DesktopCaptureVideoService implements CaptureVideoService {
     private static final String OS_NAME  = System.getProperty("os.name").toLowerCase(Locale.ROOT);
 
     static {
+        Path path = null;
         if (OS_NAME.contains("mac")) {
-            Path path = Path.of(System.getProperty("user.home"), ".gluon", "libs", "libCaptureVideo.dylib");
-            if (Files.exists(path)) {
+            path = Path.of(System.getProperty("user.home"), ".gluon", "libs", "libCaptureVideo.dylib");
+        } else {
+            path = Path.of(System.getProperty("user.home"), ".gluon", "libs", "libCaptureVideo.so");
+        }
+        if ((path != null) && (Files.exists(path))) {
+            try {
                 System.load(path.toString());
                 initCaptureVideo();
-            } else {
-                LOG.log(Level.SEVERE, "Library not found at " + path);
+                LOG.info("Native capturevideo loaded for " + OS_NAME);
+            } catch (Throwable t) {
+                LOG.log(Level.SEVERE, "Unexpected error loading native capturevideo lib!", t);
             }
+        } else {
+            LOG.log(Level.SEVERE, "Library not found at " + path);
         }
     }
 
@@ -62,7 +70,19 @@ public class DesktopCaptureVideoService implements CaptureVideoService {
     @Override
     public void start() {
         frameProperty.setValue(null);
-        nativeStart();
+        Thread t = new Thread() {
+            @Override public void run() {
+                try {
+                    LOG.info("Pass control to native start camera");
+                    nativeStart();
+                    LOG.info("Returned control from native start camera");
+                } catch (Throwable t) {
+                    LOG.log(Level.SEVERE, "Major error trying to listen to camera", t);
+                    t.printStackTrace();
+                }
+            }
+        };
+        t.start();
     }
 
     @Override
@@ -81,9 +101,9 @@ public class DesktopCaptureVideoService implements CaptureVideoService {
     private static native void nativeStop();
 
     // callback
-    public static void setResult(int width, int height, byte[] data) {
+    public static void setResult(int width, int height, int format, byte[] data) {
         if (data != null) {
-            Frame f = new Frame(width, height, data);
+            Frame f = new Frame(width, height, format, data);
             Platform.runLater(() -> frameProperty.setValue(f));
         }
     }
