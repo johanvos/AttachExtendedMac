@@ -29,6 +29,7 @@
 #include "jni.h"
 #include "AttachMacros.h"
 #import <AVFoundation/AVFoundation.h>
+#import <Accelerate/Accelerate.h>
 
 @interface CaptureVideo : NSViewController <AVCaptureVideoDataOutputSampleBufferDelegate> {}
     - (void)captureOutput:(AVCaptureOutput *)output didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
