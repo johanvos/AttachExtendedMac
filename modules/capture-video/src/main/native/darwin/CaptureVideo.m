@@ -105,7 +105,9 @@ void sendPicturesResult(int width, int height, uint8_t* data, size_t len) {
         (*env)->ExceptionClear(env);
         return;
     }
-    (*env)->CallStaticVoidMethod(env, mat_jCaptureVideoServiceClass, mat_jCaptureVideoService_setResult, width, height, 0, picByteArray);
+    int pixelFormat = 2; // RGBA
+    (*env)->CallStaticVoidMethod(env, mat_jCaptureVideoServiceClass, mat_jCaptureVideoService_setResult,
+        width, height, pixelFormat, picByteArray);
     (*env)->DeleteLocalRef(env, picByteArray);
 }
 
@@ -139,7 +141,7 @@ AVCaptureVideoDataOutput *_output;
      if (_output) {
         NSString* key = (NSString*)kCVPixelBufferPixelFormatTypeKey;
         NSNumber* val = [NSNumber numberWithUnsignedInt:kCVPixelFormatType_32BGRA];
-        // NSNumber* val = [NSNumber numberWithUnsignedInt:kCVPixelFormatType_420YpCbCr8BiPlanarFullRange];
+//         NSNumber* val = [NSNumber numberWithUnsignedInt:kCVPixelFormatType_420YpCbCr8BiPlanarFullRange];
         NSDictionary* videoSettings = [NSDictionary dictionaryWithObject:val forKey:key];
         _output.videoSettings = videoSettings;
         _output.alwaysDiscardsLateVideoFrames = true;
@@ -181,7 +183,23 @@ AVCaptureVideoDataOutput *_output;
             size_t height = CVPixelBufferGetHeight(imageBuffer);
             size_t length = CVPixelBufferGetDataSize(imageBuffer);
             uint8_t* rdata = malloc(length);
-            memcpy(rdata, data, length);
+
+            vImage_Buffer src;
+            src.height = height;
+            src.width = width;
+            src.rowBytes = width * 4;
+            src.data = data;
+
+            vImage_Buffer dest;
+            dest.height = height;
+            dest.width = width;
+            dest.rowBytes = width * 4;
+            dest.data = rdata;
+
+            // Swap pixel channels from RGBA to BGRA.
+            const uint8_t map[4] = { 2, 1, 0, 3 };
+            vImagePermuteChannels_ARGB8888(&src, &dest, map, kvImageNoFlags);
+
             size_t bytesPerRow = CVPixelBufferGetBytesPerRow(imageBuffer);
             size_t pixelFormat = CVPixelBufferGetPixelFormatType(imageBuffer); // kCVPixelFormatType_422YpCbCr8
             CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
