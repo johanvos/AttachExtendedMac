@@ -58,12 +58,6 @@ JNIEXPORT void JNICALL Java_com_gluonhq_attachextendedmac_capturevideo_impl_Desk
         return;
     }
 
-    NSString *bundleIdentifier = [[NSBundle mainBundle] bundleIdentifier];
-    if ([bundleIdentifier isEqualToString:@"net.java.openjdk.java"]) {
-        AttachLog(@"Warning: bundleIdentifier is %@: it doesn't support Capture Video. Use jpackage to create an app", bundleIdentifier);
-        return;
-    }
-
     captureInited = 1;
 
     mat_jCaptureVideoServiceClass = (*env)->NewGlobalRef(env, (*env)->FindClass(env, "com/gluonhq/attachextendedmac/capturevideo/impl/DesktopCaptureVideoService"));
@@ -74,7 +68,7 @@ JNIEXPORT void JNICALL Java_com_gluonhq_attachextendedmac_capturevideo_impl_Desk
 (JNIEnv *env, jclass jClass)
 {
     if (!captureInited) {
-        AttachLog(@"Warning: Capture Video not supported. Use jpackage to create an app");
+        AttachLog(@"Warning: Capture Video not initialized yet");
         return;
     }
     AttachLog(@"Capture video start");
@@ -87,7 +81,7 @@ JNIEXPORT void JNICALL Java_com_gluonhq_attachextendedmac_capturevideo_impl_Desk
 (JNIEnv *env, jclass jClass)
 {
     if (!captureInited) {
-        AttachLog(@"Warning: Capture Video not supported. Use jpackage to create an app");
+        AttachLog(@"Warning: Capture Video not initialized yet");
         return;
     }
     AttachLog(@"Capture video stop");
